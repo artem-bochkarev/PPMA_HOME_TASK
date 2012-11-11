@@ -65,7 +65,75 @@ public class Main {
 			if ( pts.length() > 1 && pts.charAt(0)==',' ) {
 				pts = pts.substring(1);
 			}
+			if ( tts.length() > 1 && tts.charAt(0)==',' ) {
+				tts = tts.substring(1);
+			}
 			System.out.printf("%3s %3s %8s %16s %20s %8s \n", line, letter, context, tts, pts, ptas );
+		}
+	}
+	
+	static void printPTS( MyOutput to, int Ts ) {
+		if ( Ts > 0 ) { 
+			to.pts = to.pts.concat( ",1/" + Integer.toString(Ts+1) );
+		}else {
+			to.pts = to.pts.concat( ",1" );
+		}
+	}
+	
+	static int exclusion( Context currentContext, Set<Character> cantSet, Map<String, Context> contextMap, String msg ) {
+		int Ts = findTsC(currentContext, msg);
+		for (char c : cantSet) {
+			if (c != '#') {
+				if (!currentContext.name.equals("#")) {
+					Ts -= findTs( currentContext.name + c, msg);
+				}else {
+					Ts -= findTs( Character.toString(c), msg);
+				}
+			}
+		}
+		return Ts;
+	}
+	
+	static int findTs( String s, String msg ) {
+		String m_msg = msg;
+		int k = m_msg.indexOf(s);
+		int i = 0;
+		while (k>-1) {
+			++i;
+			m_msg = m_msg.substring(k+1);
+			k = m_msg.indexOf(s);
+		}
+		return i;
+	}
+	
+	static int findTsC( Context context, String msg ) {
+		String s = context.name;
+		if (s.equals("#")) {
+			return context.counter;
+		}
+		String nMsg = msg.substring(0, msg.length() - s.length());
+		return findTs(s, nMsg);
+	}
+	
+	static void fillCantSet( Set<Character> set, Context context, String msg ) {
+		String m_msg = msg;
+		int k = m_msg.indexOf(context.name);
+		while (k>-1) {
+			int t = k + context.name.length();
+			if (m_msg.length() <= t)
+				break;
+			set.add(m_msg.charAt(t));
+			m_msg = m_msg.substring(k+1);
+			k = m_msg.indexOf(context.name);
+			
+		}
+	}
+	
+	static void fillNewContext( Context context, String msg) {
+		Set<Character> set = new HashSet<Character>();
+		fillCantSet(set, context, msg);
+		for (char c : set) {
+			context.incCounter(c);
 		}
 	}
 	
@@ -81,12 +149,15 @@ public class Main {
 		ArrayList<String> contexts = new ArrayList<String> (n);
 		Map<String, Context> contextMap = new HashMap<String, Context>();
 		Context nullContext = new Context("#");
-		nullContext.counter = -1;
+		nullContext.counter = 0;
+		nullContext.lettersCnt = 0;
 		contextMap.put("", nullContext );
+		int chCnt = 256;
 		
 		for (int i=0; i<n; ++i) {
 			MyOutput output = new MyOutput();
 			output.line = Integer.toString(i+1);
+			String currentMsg = msg.substring(0, i);
 			
 			String context = findContext( msg.substring(0, i), i, D );
 			contexts.add(context);
@@ -96,68 +167,79 @@ public class Main {
 				contextMap.put(context, tmp);
 			}else {
 				tmp = contextMap.get(context);
-				tmp.counter++;
 			}
 			
+			fillNewContext(tmp, currentMsg);
 			char curChar = msg.charAt(i);
 			output.letter = Character.toString(curChar);
 			output.context = tmp.name;
 			
-			int Ts = tmp.counter;
-			output.tts = Integer.toString(Ts);
+			output.tts = "";
 			output.pts = "";
+			output.ptas = "";
+			int Ts = 0;
 			
-			int Ptsa_ch = 0;
-			int Ptsa_zn = 0;
+			if ( tmp.name.equals("#") ) {
+				tmp.counter = i;
+			}
+
 			if ( tmp.entries.containsKey(curChar) ) {
 				//ok
 				
+				Ts = findTsC( tmp, currentMsg );
+				output.tts = Integer.toString(tmp.counter);
+				int Tsa = findTs( context + curChar, currentMsg);
+				output.ptas = Integer.toString(Tsa)+"/"+Integer.toString(Ts+1);
+				tmp.counter++;
 			}else {
+				Set<Character> cantBe = new HashSet<Character>();
 				while ( !tmp.entries.containsKey(curChar) ) {
-					if ( tmp.lettersCnt > 1 ) { 
-						output.pts = output.pts.concat( ",1/" + Integer.toString(tmp.lettersCnt) );
+					if ( context.equals("") ) {
+						//esc + first time
+						tmp.counter = i;
+						int Ts_s = exclusion(tmp, cantBe, contextMap, currentMsg);
+						printPTS(output, Ts_s);
+						output.ptas = "1/" + Integer.toString(chCnt--);
+						break;
 					}else {
-						output.pts = output.pts.concat( ",1" );
-					}
-					boolean b = (context.length() > 0);
-					if ( context.length() > 1 )
-						context = context.substring(1);
-					else
-						context = "";
-					//esc
-					tmp = contextMap.get(context);
-					if ( tmp == null ) {
-						tmp = new Context(context);
-						contextMap.put(context, tmp);
-						//System.err.println("No smaller context: \"" + context + '"');
-					}
-					
-					
-					if (b) {
+						//esc + smaller context
+						Ts = findTsC( tmp, currentMsg );
+						output.tts = output.tts.concat("," + Integer.toString(Ts));
 						tmp.counter++;
-					}
-
-					if ( tmp.entries.containsKey(curChar) ) {
-						//ok
-						break;
-					}else if ( context.equals("") ) {
-						//first time
-						Ptsa_ch = 1;
-						if (b) {
-							output.tts = output.tts.concat("," + Integer.toString(tmp.counter));
-							if ( tmp.lettersCnt > 1 ) { 
-								output.pts = output.pts.concat( ",1/" + Integer.toString(tmp.lettersCnt) );
-							}else {
-								output.pts = output.pts.concat( ",1" );
-							}
-						}
-						break;
+						int Ts_s = exclusion(tmp, cantBe, contextMap, currentMsg);
+						fillCantSet(cantBe, tmp, currentMsg);
+						printPTS(output, Ts_s);
+						if ( context.length() > 1 )
+							context = context.substring(1);
+						else
+							context = "";
+						tmp = contextMap.get(context);
+						if ( tmp == null ) {
+							tmp = new Context(context);
+							contextMap.put(context, tmp);
+							fillNewContext(tmp, currentMsg);
+							//System.err.println("No smaller context: \"" + context + '"');
+						}				
 					}
 				}
-			}
-			if ( Ptsa_ch == 0 ) {
-				Ptsa_ch = tmp.entries.get(curChar);
-				Ptsa_zn = tmp.entries.size();
+				if ( tmp.name.equals("#") ) {
+					tmp.counter = i;
+				}
+				Ts = findTsC(tmp, currentMsg);
+				output.tts = output.tts.concat("," + Integer.toString(tmp.counter));
+				if ( output.ptas.equals("") ) {
+					//fillCantSet(cantBe, tmp, currentMsg);
+					int Ts_s = exclusion(tmp, cantBe, contextMap, currentMsg);
+					int Tsa = findTs( context + curChar, currentMsg);
+					output.ptas = Integer.toString(Tsa)+"/"+Integer.toString(Ts_s+1);
+				}
+				if ( Ts != tmp.counter ) {
+					//check!
+					System.err.println(i+1);
+					System.err.println(tmp.counter + " != " + Ts);
+				}
+				tmp.counter++;
+				
 			}
 			tmp.incCounter(curChar);
 			output.out();
