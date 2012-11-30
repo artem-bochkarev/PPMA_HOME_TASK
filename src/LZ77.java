@@ -1,5 +1,5 @@
 
-public class Main {
+public class LZ77 {
 	
 	public static class Vocabulary {
 		public Vocabulary( int maxLength ) {
