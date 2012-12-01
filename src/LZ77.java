@@ -1,3 +1,5 @@
+import java.nio.charset.Charset;
+
 
 public class LZ77 {
 	
@@ -44,9 +46,18 @@ public class LZ77 {
 	
 	public static String charToBinary(char c) {
 		StringBuilder binary = new StringBuilder();
-		for (int i = 0; i < 16; i++) {
-			binary.append((c & 32768) == 0 ? 0 : 1);
-			c <<= 1;
+		//if ()
+		if ( c != ' ' && c != '.'  ) {
+			c <<= 8;
+			for (int i = 0; i < 8; i++) {
+				binary.append((c & 32768) == 0 ? 0 : 1);
+				c <<= 1;
+			}
+		}else {
+			for (int i = 0; i < 8; i++) {
+				binary.append((c & 32768) == 0 ? 0 : 1);
+				c <<= 1;
+			}
 		}
 		binary.append(' ');
 		return binary.toString();
@@ -111,6 +122,12 @@ public class LZ77 {
 	}
 	
 	public static void main( String args[] ) {
+		
+		//Charset utf8charset = Charset.forName("UTF-8"); 
+		//Charset iso88591charset = Charset.forName("ISO-8859-1"); 
+		//ByteBuffer inputBuffer = ByteBuffer.wrap(new Byte[]{(byte)0xC3, (byte)0xA2}); 
+		// decode UTF-8 CharBuffer data = utf8charset.decode(inputBuffer); // encode ISO-8559-1 ByteBuffer outputBuffer = iso88591charset.encode(data); byte[] outputData = outputBuffer.array();
+		
 		Vocabulary vocabulary = new Vocabulary(Integer.parseInt(args[0]));
 		String msg = args[1];
 		int i = 2;
@@ -129,7 +146,7 @@ public class LZ77 {
 			outputTable.line = Integer.toString(i);
 			outputTable.out();
 		}
-		System.out.println("Source size = " + 2*msg.length() + " bytes");
+		System.out.println("Source size = " + msg.length() + " bytes");
 		int arcSize = (binaryOutput.length() + 7)/8;
 		System.out.println("Archived size = " + arcSize + " bytes");
 	}
