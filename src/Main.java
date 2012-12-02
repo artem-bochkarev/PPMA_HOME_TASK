@@ -14,6 +14,7 @@ public class Main {
 	static class Context implements Comparable<Context>{
 		public String name;
 		public Map<Character, Integer> entries;
+		public Map<Character, Integer> pos;
 		public int counter;
 		public int lettersCnt;
 		Context( String name ) {
@@ -37,6 +38,29 @@ public class Main {
 			}
 			lettersCnt++;
 		}
+		
+		public void incCounter( char c, int k ) {
+			//if ( entries.containsKey(c) ) {
+				entries.put(c, k);
+			//}else {
+			//	entries.put(c, k);
+			//}
+			lettersCnt += k;
+		}
+		
+		public long[] cumFreq() {
+			pos = new HashMap<Character, Integer>();
+			long[] arr = new long[entries.size()+1];
+			int k = entries.size();
+			arr[k] = 0;
+			for (char c:entries.keySet()) {
+				arr[k-1] = arr[k]+entries.get(c);
+				pos.put(c, k);
+				--k;
+			}
+			return arr;
+		}
+		
 		@Override
 		public int compareTo(Context o) {
 			return name.compareTo(o.name);
@@ -60,7 +84,7 @@ public class Main {
 	}
 	
 	static class MyOutput {
-		public String line, letter, context, tts, pts, ptas;
+		public String line, letter, context, tts, pts, ptas, binary;
 		public void out() {
 			if ( pts.length() > 1 && pts.charAt(0)==',' ) {
 				pts = pts.substring(1);
@@ -68,7 +92,10 @@ public class Main {
 			if ( tts.length() > 1 && tts.charAt(0)==',' ) {
 				tts = tts.substring(1);
 			}
-			System.out.printf("%3s %3s %8s %16s %20s %8s \n", line, letter, context, tts, pts, ptas );
+			if ( binary.length() > 1 && binary.charAt(0)=='+' ) {
+				binary = binary.substring(1);
+			}
+			System.out.printf("%3s %3s %8s %16s %20s %8s %s\n", line, letter, context, tts, pts, ptas, binary );
 		}
 	}
 	
@@ -125,16 +152,116 @@ public class Main {
 			set.add(m_msg.charAt(t));
 			m_msg = m_msg.substring(k+1);
 			k = m_msg.indexOf(context.name);
+		}
+	}
+	
+	static void fillCantMap( Map<Character, Integer> map, Context context, String msg ) {
+		String m_msg = msg;
+		int k = m_msg.indexOf(context.name);
+		while (k>-1) {
+			int t = k + context.name.length();
+			if (m_msg.length() <= t)
+				break;
+			if ( map.containsKey(m_msg.charAt(t)) ) {
+				map.put(m_msg.charAt(t), map.get(m_msg.charAt(t)) + 1);
+			}else {
+				map.put(m_msg.charAt(t), 1);
+			}
+			m_msg = m_msg.substring(k+1);
+			k = m_msg.indexOf(context.name);
 			
 		}
 	}
 	
 	static void fillNewContext( Context context, String msg) {
-		Set<Character> set = new HashSet<Character>();
-		fillCantSet(set, context, msg);
-		for (char c : set) {
-			context.incCounter(c);
+		HashMap<Character, Integer> map = new HashMap<Character, Integer>();
+		fillCantMap(map, context, msg);
+		for (char c : map.keySet()) {
+			context.incCounter(c, map.get(c));
 		}
+	}
+	
+	static class ArithmeticCode {
+		private static final long topValue = (((long) 1 << 16) - 1);
+		private static final long firstQtr = (topValue/4+1);
+		private static final long Half = 2*firstQtr;
+		private static final long thirdQtr = 3*firstQtr;
+		private long high, low;
+		private int bitsToFollow;
+		private StringBuilder currentStr;
+		private StringBuilder str;
+		
+		public ArithmeticCode() {
+			low = 0;
+			high = topValue;
+			bitsToFollow = 0;
+			str = new StringBuilder();
+		}
+		
+		public void bitsPlusFollow(char c) {
+			currentStr.append(c);
+			for (int i=bitsToFollow; i>0; i--) {
+				if (c == '1')
+					currentStr.append('0');
+				else
+					currentStr.append('1');
+			}
+			bitsToFollow = 0;
+		}
+		
+		public void addIncl(String a) {
+			str.append(a);
+		}
+		
+		public String encodeSymbol(char c, Context con ) {
+			long cum_freq[] = con.cumFreq();
+			int symbol = con.pos.get(c);
+			currentStr = new StringBuilder();
+			long range;
+			range = (long) (high - low) + 1;
+			high = low + (range * cum_freq[symbol - 1]) / cum_freq[0] - 1;
+			low  = low + (range * cum_freq[symbol]) / cum_freq[0];
+			for (;;) { 
+				if (high < Half) { 
+					bitsPlusFollow('0');
+				}
+				else if (low >= Half) {
+					bitsPlusFollow('1');
+					low -= Half;
+					high -= Half;
+				} else if (low >= firstQtr
+						&& high < thirdQtr) {
+					bitsToFollow += 1;
+					low -= firstQtr;
+					high -= firstQtr;
+				}
+				else
+					break;
+				low = 2 * low;
+				high = 2 * high + 1;
+			}
+			str.append(currentStr);
+			return currentStr.toString();
+		}
+	}
+	
+	public static String charToBinary(char c) {
+		StringBuilder binary = new StringBuilder();
+		//if ()
+		//if ( c != ' ' && c != '.' && c != '_' ) {
+			c <<= 8;
+			for (int i = 0; i < 8; i++) {
+				binary.append((c & 32768) == 0 ? 0 : 1);
+				c <<= 1;
+			}
+		/*}else {
+			for (int i = 0; i < 8; i++) {
+				binary.append((c & 32768) == 0 ? 0 : 1);
+				c <<= 1;
+			}
+		}*/
+		binary.append(' ');
+		return binary.toString();
 	}
 	
 	public static void main(String[] args) {
@@ -153,6 +280,7 @@ public class Main {
 		nullContext.lettersCnt = 0;
 		contextMap.put("", nullContext );
 		int chCnt = 256;
+		ArithmeticCode arithm = new ArithmeticCode();
 		
 		for (int i=0; i<n; ++i) {
 			MyOutput output = new MyOutput();
@@ -165,6 +293,7 @@ public class Main {
 			Context tmp = new Context(context);
 			if ( !contextMap.containsKey(context) ) {
 				contextMap.put(context, tmp);
+				//fillNewContext(tmp, currentMsg);
 			}else {
 				tmp = contextMap.get(context);
 			}
@@ -191,8 +320,10 @@ public class Main {
 				int Tsa = findTs( context + curChar, currentMsg);
 				output.ptas = Integer.toString(Tsa)+"/"+Integer.toString(Ts+1);
 				tmp.counter++;
+				output.binary = arithm.encodeSymbol(curChar, tmp);
 			}else {
 				Set<Character> cantBe = new HashSet<Character>();
+				output.binary = "";
 				while ( !tmp.entries.containsKey(curChar) ) {
 					if ( context.equals("") ) {
 						//esc + first time
@@ -200,11 +331,16 @@ public class Main {
 						int Ts_s = exclusion(tmp, cantBe, contextMap, currentMsg);
 						printPTS(output, Ts_s);
 						output.ptas = "1/" + Integer.toString(chCnt--);
+						output.binary += "+" + arithm.encodeSymbol('#', tmp);
+						output.binary += "+" + charToBinary(curChar);
+						arithm.addIncl(charToBinary(curChar));
 						break;
 					}else {
 						//esc + smaller context
 						Ts = findTsC( tmp, currentMsg );
 						output.tts = output.tts.concat("," + Integer.toString(Ts));
+						output.binary = "+" + arithm.encodeSymbol('#', tmp);
+						
 						tmp.counter++;
 						int Ts_s = exclusion(tmp, cantBe, contextMap, currentMsg);
 						fillCantSet(cantBe, tmp, currentMsg);
@@ -219,7 +355,7 @@ public class Main {
 							contextMap.put(context, tmp);
 							fillNewContext(tmp, currentMsg);
 							//System.err.println("No smaller context: \"" + context + '"');
-						}				
+						}
 					}
 				}
 				if ( tmp.name.equals("#") ) {
@@ -244,6 +380,10 @@ public class Main {
 			tmp.incCounter(curChar);
 			output.out();
 		}
+		
+		System.out.println("Source size = " + msg.length() + " bytes");
+		int arcSize = (arithm.str.toString().length() + 7)/8;
+		System.out.println("Archived size = " + arcSize + " bytes");
 	}
 
 }
