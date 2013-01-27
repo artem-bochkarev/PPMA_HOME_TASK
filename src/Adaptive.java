@@ -1,8 +1,12 @@
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import javax.swing.event.ListSelectionEvent;
 
 
 public class Adaptive {
@@ -12,6 +16,12 @@ public class Adaptive {
 	 */
 	
 	static class MyOutput {
+		public MyOutput() {
+			// TODO Auto-generated constructor stub
+			line = "";
+			letter = "";
+			binary = "";
+		}
 		public String line, letter, binary;
 		public void out() {
 			if ( binary.length() > 1 && binary.charAt(0)=='+' ) {
@@ -86,31 +96,60 @@ public class Adaptive {
 	}
 	
 	static class Statistic {
-		private Map<Character, Integer> map;
+		private Map<Byte, Integer> map;
 		Statistic() {
-			map = new HashMap<Character, Integer>();
-			map.put('#', 1);
+			map = new HashMap<Byte, Integer>();
+			String str = "";
+			str += 'a';
+			for (int i=0; i<256; ++i) {
+				map.put((byte)i, 1);
+			}
+			map.put((byte) 0, 0);
+			//map.put('#', 1);
 		}
 		
 		public long[] cumFreq() {
 			//pos = new HashMap<Character, Integer>();
 			long[] arr = new long[map.size()+1];
+			ArrayList<Integer> values = new ArrayList<Integer>(map.size()+1);
+			for (byte c:map.keySet()) {
+				values.add(map.get(c));
+			}
+			
 			int k = map.size();
 			arr[k] = 0;
-			for (char c:map.keySet()) {
-				arr[k-1] = arr[k]+map.get(c);
+			Collections.sort(values);
+			for (int z:values)
+			{
+				arr[k-1] = arr[k]+z;
 				//pos.put(c, k);
 				--k;
 			}
 			return arr;
 		}
 		
+		public byte getByte( char c ) {
+			byte ch = 0;
+			try {
+				String str = "";
+				str += c;
+				byte arr[] = str.getBytes("windows-1251");
+				ch = arr[0];
+			} catch (UnsupportedEncodingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				System.err.println("ERROR!");
+			}
+			return ch;
+		}
+		
 		public int getCharPos(char c) {
-			if ( !map.containsKey(c) )
+			byte ch = getByte(c);
+			if ( !map.containsKey(ch) )
 				return -1;
 			int k = 1;
-			for (char d:map.keySet()) {
-				if ( d == c ) {
+			for (byte d:map.keySet()) {
+				if ( d == ch ) {
 					return k;
 				}
 				++k;
@@ -119,10 +158,11 @@ public class Adaptive {
 		}
 		
 		public void add(char c) {
-			if ( map.containsKey(c) ) {
-				map.put(c, map.get(c) + 1);
+			byte ch = getByte(c);
+			if ( map.containsKey(ch) ) {
+				map.put(ch, map.get(ch) + 1);
 			}else {
-				map.put(c, 1);
+				map.put(ch, 1);
 			}
 		}
 	}
@@ -173,13 +213,13 @@ public class Adaptive {
 			int pos = st.getCharPos(curChar);
 			if ( pos != -1 ) {
 				output.binary = arithm.encodeSymbol(pos, st.cumFreq());
-			}else {
+			}/*else {
 				pos = st.getCharPos('#');
 				output.binary = arithm.encodeSymbol(pos, st.cumFreq());
 				arithm.addIncl(charToBinary(curChar));
 				output.binary += "+" + charToBinary(curChar);
 				output.letter = "#";
-			}
+			}*/
 			
 			st.add(curChar);
 			output.letter += Character.toString(curChar);

@@ -33,7 +33,7 @@ public class LZ78 {
 	static class MyOutput {
 		public String line, writeBlock, blockPos, blockSize, binOut;
 		public void out() {
-			System.out.printf("%3s\t%10s\t%3s\t%3s\t%s\n", line, writeBlock, blockPos, blockSize, binOut );
+			System.out.printf("%s\t%s\t%s\t%s\t%s\n", line, writeBlock, blockPos, blockSize, binOut );
 		}
 	}
 	

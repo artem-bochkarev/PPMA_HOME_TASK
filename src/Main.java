@@ -95,7 +95,7 @@ public class Main {
 			if ( binary.length() > 1 && binary.charAt(0)=='+' ) {
 				binary = binary.substring(1);
 			}
-			System.out.printf("%3s %3s %8s %16s %20s %8s %s\n", line, letter, context, tts, pts, ptas, binary );
+			System.out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n", line, letter, context, tts, pts, ptas, binary );
 		}
 	}
 	
@@ -266,11 +266,17 @@ public class Main {
 	
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
-		String alphabet = args[0];
-		int D = Integer.parseInt(args[1]);
-		String msg = args[2];
-		System.out.println( alphabet );
+		//String alphabet = args[0];
+		int D = Integer.parseInt(args[0]);
+		//System.out.println( alphabet );
 		System.out.println( D );
+		String msg = args[1];
+		int ii = 2;
+		while ( ii < args.length )
+		{
+			msg += " " + args[ii];
+			++ii;
+		}
 		
 		int n = msg.length();
 		ArrayList<String> contexts = new ArrayList<String> (n);
